@@ -1,0 +1,40 @@
+{
+  "params": {
+    "lookback": 20,
+    "hidden": 64,
+    "layers": 2,
+    "dropout": 0.1,
+    "lr": 0.001,
+    "batch_size": 256,
+    "max_epochs": 100,
+    "patience": 12,
+    "seed": 42,
+    "loss": "qlike",
+    "horizon": 5,
+    "train_end": "2021-12-31",
+    "val_end": "2023-12-31"
+  },
+  "best_val_qlike": 0.24386705458164215,
+  "epochs_trained": 19,
+  "test_period": [
+    "2024-01-02",
+    "2026-10-30"
+  ],
+  "metrics": {
+    "lstm": {
+      "rmse": 0.08167363703250885,
+      "mae": 0.05244187265634537,
+      "qlike": 0.44717809557914734
+    },
+    "naive_21d": {
+      "rmse": 0.09329399080340332,
+      "mae": 0.05797553001392492,
+      "qlike": 0.6839954326896
+    },
+    "ewma_riskmetrics": {
+      "rmse": 0.08942569407950829,
+      "mae": 0.05800620291823798,
+      "qlike": 0.6024111991665275
+    }
+  }
+}

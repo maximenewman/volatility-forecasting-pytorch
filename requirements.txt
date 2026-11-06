@@ -1,0 +1,6 @@
+torch>=2.2
+mlflow>=3.0
+pandas>=2.0
+numpy>=1.26
+matplotlib>=3.8
+streamlit>=1.35
