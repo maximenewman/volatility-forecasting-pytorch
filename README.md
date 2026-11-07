@@ -1,50 +1,75 @@
-# Volatility forecasting with PyTorch
+# Predicting how jumpy the stock market will be
 
-Forecasting S&P 500 realized volatility with an LSTM trained on a **custom QLIKE
-loss**, tracked with **MLflow**, with a **Streamlit** dashboard for the results.
+This project trains a neural network to forecast the **volatility** of the
+S&P 500 - that is, how wildly the index is likely to swing over the next
+five days, not which direction it will go.
 
-## Task
+Why volatility? It is one of the core numbers in finance. Options prices,
+risk limits, and margin requirements all depend on how jumpy the market is
+expected to be. A bank does not just want to know "up or down" - it wants
+to know "calm or stormy".
 
-Predict the forward 5-day annualized realized volatility of S&P 500 log returns,
-using only information available at prediction time: lagged returns, trailing
-realized-volatility windows (5/10/21 days), Parkinson high-low range volatility,
-mean absolute returns and high-low range features.
+One honest thing to say up front: **this model predicts the size of future
+swings, not their direction.** It cannot tell you whether to buy or sell,
+and nothing here is trading advice. It reads patterns in past prices and
+estimates how bumpy the next week is likely to be.
 
-## Data
+## What it actually does
 
-Daily ^GSPC OHLC, ~15 years, pulled from the Yahoo Finance chart endpoint by
-`data.py` and cached to `data/spx.csv` (committed, so the repo runs offline).
-Chronological split: train <= 2021, validation 2022-2023, test 2024 onward.
+- Downloads about 15 years of daily S&P 500 prices (the file is saved in
+  the repo, so everything runs offline).
+- Turns raw prices into simple summary numbers a person could compute too:
+  recent daily moves, how much prices moved over the last 5/10/21 days, and
+  how wide each day's high-to-low range was.
+- Feeds those summaries into an LSTM - a type of neural network designed
+  for sequences - which outputs a single number: expected volatility over
+  the next five trading days.
+- Trains with a custom error measure called QLIKE, which comes from the
+  econometrics literature (Patton, 2011) and is designed specifically for
+  judging volatility forecasts. Standard off-the-shelf error measures can
+  rank volatility models incorrectly; QLIKE is the published fix. Writing
+  this custom loss into PyTorch was a core part of the project.
+- Logs every training run with MLflow so experiments can be compared, and
+  shows the results in a small Streamlit dashboard.
 
-## Model
+## How well it does
 
-- `model.py`: 2-layer LSTM (hidden 64) with a small MLP head and softplus
-  output, predicting variance (positivity by construction).
-- `losses.py`: custom **QLIKE loss** (Patton, 2011), a strictly consistent
-  scoring rule for volatility forecasts, plus a regime-weighted MSE.
-- `baselines.py`: naive 21-day rolling volatility and RiskMetrics EWMA
-  (lambda = 0.94), evaluated on the same test window for honest comparison.
-
-## Results (held-out test period)
-
-All numbers below are produced by `train.py` and logged to MLflow; see
-`results/metrics.json` for the exact run.
+Tested only on data the model never saw during training (2024 onward),
+against two standard baselines - a simple 21-day rolling average and EWMA,
+the RiskMetrics model that has been an industry default for decades:
 
 | Model | RMSE | MAE | QLIKE |
 |---|---|---|---|
-| LSTM (QLIKE loss) | 0.0817 | 0.0524 | 0.447 |
+| LSTM (custom QLIKE loss) | 0.0817 | 0.0524 | 0.447 |
 | EWMA (RiskMetrics) | 0.0894 | 0.0580 | 0.602 |
 | Naive 21-day rolling | 0.0933 | 0.0580 | 0.684 |
 
-The LSTM beats both baselines on all three metrics.
+Lower is better on all three measures, and the LSTM beats both baselines on
+all three. RMSE is the typical size of the forecast error: roughly speaking,
+the LSTM's error is about 13% smaller than the naive baseline's.
+
+An honest caveat: beating baselines on one index over one test period shows
+the approach works on this data. It does not prove it would beat a trading
+desk's models, and it says nothing about predicting prices.
 
 ![Test forecast](results/test_forecast.png)
 
-## Reproduce
+## Run it
 
 ```bash
 pip install -r requirements.txt
-python train.py          # trains, evaluates, logs to MLflow (sqlite backend)
-mlflow ui --backend-store-uri sqlite:///mlflow.db
+python train.py          # trains, evaluates, logs to MLflow
+mlflow ui --backend-store-uri sqlite:///mlflow.db   # experiment logs
 streamlit run app.py     # results dashboard
 ```
+
+## Layout
+
+- `data.py` - downloads and caches S&P 500 daily prices
+- `features.py` - builds the summary inputs from raw prices
+- `model.py` - the LSTM
+- `losses.py` - the custom QLIKE loss and a weighted MSE variant
+- `baselines.py` - the rolling and EWMA baselines
+- `train.py` - training + evaluation + MLflow logging
+- `app.py` - Streamlit dashboard
+- `results/metrics.json` - the exact numbers from the reported run
